@@ -1,0 +1,98 @@
+---
+title: "MIS581 CAPSTONE PROJECT"
+author: "Ling Long Zhang"
+date: "1/13/2022"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#set up working directory
+
+setwd("C:/Users/zhang/OneDrive/Desktop/MIS581/data")
+
+#import NYPD Hate Crime Dataset
+dt<-read.csv("NYPD_Hate_Crimes_Modified.csv", header=TRUE)
+
+summary(dt)
+```
+
+```{r}
+#Test First Hypothesis
+
+#convert year variable to characters
+year<-as.character(dt$Complaint.Year)
+dt$Complaint.Year<-year
+summary(dt)
+
+#drop data points that will affect the performance of the statistical test(lack of data in cell)
+#drop "60 years and older", "anti-physical disability", and "anti race/color"
+dt1<-dt[!(dt$Bias.Motive.Description=="60 YRS AND OLDER" | dt$Bias.Motive.Description=="ANTI-PHYSICAL DISABILITY" | dt$Bias.Motive.Description=="ANTI RACE/COLOR"),]
+table(dt1$Bias.Motive.Description)
+
+#construct the multinomial logistic regression for bias motive and year
+#install nnet package 
+install.packages("nnet")
+library('nnet')
+
+#define reference level
+dt1$Bias.Motive.Description2<- relevel(factor(dt1$Bias.Motive.Description), ref="ANTI-FEMALE")
+
+test1<-multinom(Bias.Motive.Description2 ~ Complaint.Year , data=dt1)
+summary(test1)
+
+#check z score for model
+z1<-summary(test1)$coefficients/summary(test1)$standard.errors
+z1
+
+#statistical significance of model
+p1<-(1-pnorm(abs(z1),0,1))* 2
+p1
+
+exp(coef(test1))
+```
+
+```{r}
+#Test Second Hypothesis
+
+#install packages for chi-square test of independence
+install.packages("ggplot2")
+install.packages("corrplot")
+library('ggplot2')
+library('corrplot')
+
+#perform chi-square test of independence for year and county
+dt2<-dt1
+test2<-chisq.test(table(dt2$Complaint.Year, dt2$County))
+
+#check the degree of association between year and county
+round(test2$residuals, 3)
+
+#present a correlation plot for better visualization of association
+corrplot(test2$residuals, is.corr=FALSE, title="Association Between NYC Counties and Complaint Year", tl.col = "black", mar=c(0,0,2,0))
+```
+
+```{r}
+#Test Third Hypothesis
+
+dt3<-dt2
+
+#construct the multinomial logistic regression for bias motive and county
+#reference level as already been defined in First Hypothesis Testing
+test3<-multinom(Bias.Motive.Description2 ~ County, data=dt3)
+summary(test3)
+
+#check z score for model
+z3<-summary(test3)$coefficients/summary(test3)$standard.errors
+z3
+
+#check statistical significance
+p3<-(1-pnorm(abs(z3),0,1))*2
+p3
+
+exp(coef(test3))
+```
+
